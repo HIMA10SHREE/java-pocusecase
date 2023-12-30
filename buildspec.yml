@@ -1,28 +1,33 @@
 version: 0.2
 
-
 phases:
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
+      - pip install --upgrade awscli 
       - aws --version
-      - $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
-      - REPOSITORY_URI=public.ecr.aws/w5y0e6y4/java-pocusecase-image
+      # - aws configure set aws_access_key_id AKIAVNM3XZW6NA6GSC5E
+      # - aws configure set aws_secret_access_key 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
+      # - aws configure set default.region ap-south-1
+      #set the ecr registry region
+      - $(aws ecr get-login  --no-include-email --region ap-south-1)
+      - REPOSITORY_URI=372378160572.dkr.ecr.ap-south-1.amazonaws.com/java-pocusecase-image
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - IMAGE_TAG=build-$(echo $CODEBUILD_BUILD_ID | awk -F":" '{print $2}')
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
   build:
     commands:
       - echo Build started on `date`
       - echo Building the Docker image...
       - docker build -t $REPOSITORY_URI:latest .
       - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
+      # - docker push --verbose $REPOSITORY_URI:latest
   post_build:
     commands:
       - echo Build completed on `date`
       - echo Pushing the Docker images...
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
-      - echo Writing image definitions file...
+      #name is the name of the container defined in the ecs .
       - printf '[{"name":"javaapp","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
       - cat imagedefinitions.json 
 artifacts:
